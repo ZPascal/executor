@@ -107,3 +107,35 @@ var _ = Describe("Container", func() {
 		})
 	})
 })
+
+var _ = Describe("Resource and ExecutorResources GPU fields", func() {
+	It("Resource carries a GPU request without disturbing existing fields", func() {
+		r := executor.NewResource(128, 512, 100)
+		r.GPULimit = 1
+		r.GPUType = "nvidia"
+
+		Expect(r.MemoryMB).To(Equal(128))
+		Expect(r.DiskMB).To(Equal(512))
+		Expect(r.MaxPids).To(Equal(100))
+		Expect(r.GPULimit).To(Equal(1))
+		Expect(r.GPUType).To(Equal("nvidia"))
+	})
+
+	It("ExecutorResources.Subtract still only accounts for memory/disk/containers, ignoring GPU fields", func() {
+		total := executor.NewExecutorResources(1024, 1024, 4)
+		total.GPUTotal = 2
+		total.GPUFree = 2
+		total.GPUType = "nvidia"
+
+		req := executor.Resource{MemoryMB: 100, DiskMB: 100, GPULimit: 1, GPUType: "nvidia"}
+		ok := total.Subtract(&req)
+
+		Expect(ok).To(BeTrue())
+		Expect(total.MemoryMB).To(Equal(924))
+		Expect(total.Containers).To(Equal(3))
+		// GPU accounting is NOT done via Subtract - GPUManager tracks it
+		// separately (Task 6). GPUTotal/GPUFree are untouched here.
+		Expect(total.GPUTotal).To(Equal(2))
+		Expect(total.GPUFree).To(Equal(2))
+	})
+})

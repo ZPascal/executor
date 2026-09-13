@@ -143,6 +143,11 @@ type Resource struct {
 	MemoryMB int `json:"memory_mb"`
 	DiskMB   int `json:"disk_mb"`
 	MaxPids  int `json:"max_pids"`
+
+	// GPULimit is the number of GPUs requested; 0 means no GPU required.
+	// GPUType is the requested vendor/type ("nvidia", "amd", or "" for any).
+	GPULimit int    `json:"gpu_limit,omitempty"`
+	GPUType  string `json:"gpu_type,omitempty"`
 }
 
 func NewResource(memoryMB, diskMB, maxPids int) Resource {
@@ -278,6 +283,14 @@ type ExecutorResources struct {
 	MemoryMB   int `json:"memory_mb"`
 	DiskMB     int `json:"disk_mb"`
 	Containers int `json:"containers"`
+
+	// GPUTotal and GPUType are set once at startup from GPUManager.TotalGPUs().
+	// GPUFree is overlaid live from GPUManager.Available() when this struct is
+	// returned from RemainingResources() (see Task 6) - it is NOT decremented
+	// by Subtract, unlike MemoryMB/DiskMB/Containers.
+	GPUTotal int    `json:"gpu_total,omitempty"`
+	GPUFree  int    `json:"gpu_free,omitempty"`
+	GPUType  string `json:"gpu_type,omitempty"`
 }
 
 func NewExecutorResources(memoryMB, diskMB, containers int) ExecutorResources {
