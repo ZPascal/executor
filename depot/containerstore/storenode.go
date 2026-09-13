@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -412,18 +411,29 @@ func (n *storeNode) createGardenContainer(logger lager.Logger, traceID string, i
 	var cdiDevices []string
 	var gpuEnv []string
 	if info.GPULimit > 0 {
+		if n.gpuManager == nil {
+			logger.Error("failed-to-allocate-gpu", errors.New("GPUManager not initialized"))
+			return nil, errors.New("GPUManager not initialized")
+		}
+
 		indices, err := n.gpuManager.Allocate(info.Guid, info.GPULimit)
 		if err != nil {
 			logger.Error("failed-to-allocate-gpu", err)
 			return nil, err
 		}
 
-		idxStrs := make([]string, len(indices))
-		for i, idx := range indices {
-			cdiDevices = append(cdiDevices, fmt.Sprintf("%s.com/gpu=%d", info.GPUType, idx))
-			idxStrs[i] = strconv.FormatUint(uint64(idx), 10)
+		// Fall back to "nvidia" if GPUType is not specified
+		vendor := info.GPUType
+		if vendor == "" {
+			vendor = "nvidia"
 		}
-		gpuEnv = append(gpuEnv, "CUDA_VISIBLE_DEVICES="+strings.Join(idxStrs, ","))
+
+		uuids := make([]string, len(indices))
+		for i, idx := range indices {
+			cdiDevices = append(cdiDevices, fmt.Sprintf("%s.com/gpu=%d", vendor, idx))
+			uuids[i] = n.gpuManager.UUIDForIndex(idx)
+		}
+		gpuEnv = append(gpuEnv, "CUDA_VISIBLE_DEVICES="+strings.Join(uuids, ","))
 	}
 
 	containerSpec := garden.ContainerSpec{

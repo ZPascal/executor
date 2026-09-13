@@ -65,4 +65,21 @@ var _ = Describe("GPUManager", func() {
 			Expect(manager.TotalGPUs()).To(BeNumerically(">=", 0))
 		})
 	})
+
+	Context("UUIDForIndex method", func() {
+		It("returns the UUID for a valid GPU index", func() {
+			uuid := manager.UUIDForIndex(0)
+			Expect(uuid).To(Equal("GPU-0"))
+		})
+
+		It("returns the UUID for a different GPU index", func() {
+			uuid := manager.UUIDForIndex(1)
+			Expect(uuid).To(Equal("GPU-1"))
+		})
+
+		It("returns empty string for an invalid GPU index", func() {
+			uuid := manager.UUIDForIndex(999)
+			Expect(uuid).To(Equal(""))
+		})
+	})
 })

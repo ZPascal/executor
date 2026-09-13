@@ -87,9 +87,8 @@ func discoverGPUs() ([]GPUInfo, error) {
 		memStr := strings.TrimSuffix(strings.TrimSpace(parts[3]), " MiB")
 		memMiB, err := strconv.ParseUint(memStr, 10, 64)
 		if err != nil {
-			// Log a warning and continue – an unparseable memory field is non-fatal
-			// but the value will be reported as 0, which may affect scheduling.
-			_ = fmt.Errorf("gpu_manager: could not parse memory for GPU %d: %w", idx, err)
+			// Unparseable memory field is silently tolerated – the value will be reported
+			// as 0, which may affect scheduling decisions.
 		}
 
 		gpus = append(gpus, GPUInfo{
@@ -172,4 +171,17 @@ func (m *GPUManager) ContainerForGPU(gpuIndex uint) string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.allocated[gpuIndex]
+}
+
+// UUIDForIndex returns the UUID of the GPU at the given index,
+// or an empty string if the index is not found.
+func (m *GPUManager) UUIDForIndex(gpuIndex uint) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, gpu := range m.GPUs {
+		if gpu.Index == gpuIndex {
+			return gpu.UUID
+		}
+	}
+	return ""
 }
