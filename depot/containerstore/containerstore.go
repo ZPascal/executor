@@ -74,6 +74,7 @@ type containerStore struct {
 	metronClient        loggingclient.IngressClient
 	rootFSSizer         configuration.RootFSSizer
 	logManager          LogManager
+	gpuManager          *executor.GPUManager
 
 	declarativeHealthcheckPath string
 
@@ -112,6 +113,7 @@ func New(
 	advertisePreferenceForInstanceAddress bool,
 	volumeMountedFiles VolumeMountedFilesImplementor,
 	jsonMarshaller func(any) ([]byte, error),
+	gpuManager *executor.GPUManager,
 ) ContainerStore {
 	return &containerStore{
 		containerConfig:               containerConfig,
@@ -136,6 +138,7 @@ func New(
 		advertisePreferenceForInstanceAddress: advertisePreferenceForInstanceAddress,
 		volumeMountedFiles:                    volumeMountedFiles,
 		jsonMarshaller:                        jsonMarshaller,
+		gpuManager:                            gpuManager,
 	}
 }
 
@@ -172,6 +175,7 @@ func (cs *containerStore) Reserve(logger lager.Logger, traceID string, req *exec
 			cs.advertisePreferenceForInstanceAddress,
 			cs.volumeMountedFiles,
 			cs.jsonMarshaller,
+			cs.gpuManager,
 		))
 
 	if err != nil {
@@ -384,7 +388,11 @@ func (cs *containerStore) Metrics(logger lager.Logger) (map[string]executor.Cont
 }
 
 func (cs *containerStore) RemainingResources(logger lager.Logger) executor.ExecutorResources {
-	return cs.containers.RemainingResources()
+	resources := cs.containers.RemainingResources()
+	if cs.gpuManager != nil {
+		resources.GPUFree = cs.gpuManager.Available()
+	}
+	return resources
 }
 
 func (cs *containerStore) GetFiles(logger lager.Logger, guid, sourcePath string) (io.ReadCloser, error) {

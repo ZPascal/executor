@@ -166,6 +166,7 @@ var _ = Describe("Container Store", func() {
 			advertisePreferenceForInstanceAddress,
 			volumeMountedFilesHandler,
 			json.Marshal,
+			nil,
 		)
 
 		metronClient.SendDurationStub = func(name string, value time.Duration, opts ...loggregator.EmitGaugeOption) error {
@@ -496,6 +497,7 @@ var _ = Describe("Container Store", func() {
 						advertisePreferenceForInstanceAddress,
 						volumeMountedFilesHandler,
 						json.Marshal,
+						nil,
 					)
 				})
 
@@ -740,6 +742,7 @@ var _ = Describe("Container Store", func() {
 						advertisePreferenceForInstanceAddress,
 						volumeMountedFilesHandler,
 						json.Marshal,
+						nil,
 					)
 				})
 
@@ -1336,6 +1339,7 @@ var _ = Describe("Container Store", func() {
 						advertisePreferenceForInstanceAddress,
 						volumeMountedFilesHandler,
 						json.Marshal,
+						nil,
 					)
 
 					portMapping := []executor.PortMapping{
@@ -1426,6 +1430,7 @@ var _ = Describe("Container Store", func() {
 							advertisePreferenceForInstanceAddress,
 							volumeMountedFilesHandler,
 							json.Marshal,
+							nil,
 						)
 					})
 
@@ -2575,6 +2580,7 @@ var _ = Describe("Container Store", func() {
 						advertisePreferenceForInstanceAddress,
 						volumeMountedFilesHandler,
 						fm.Marshal,
+						nil,
 					)
 				})
 
@@ -3148,6 +3154,7 @@ var _ = Describe("Container Store", func() {
 						advertisePreferenceForInstanceAddress,
 						volumeMountedFilesHandler,
 						json.Marshal,
+						nil,
 					)
 
 					signalled := credManagerRunnerSignalled

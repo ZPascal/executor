@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -95,6 +97,8 @@ type storeNode struct {
 	volumeMountedFiles VolumeMountedFilesImplementor
 
 	jsonMarshaller func(any) ([]byte, error)
+
+	gpuManager *executor.GPUManager
 }
 
 func newStoreNode(
@@ -119,6 +123,7 @@ func newStoreNode(
 	advertisePreferenceForInstanceAddress bool,
 	volumeMountedFiles VolumeMountedFilesImplementor,
 	jsonMarshaller func(any) ([]byte, error),
+	gpuManager *executor.GPUManager,
 ) *storeNode {
 	return &storeNode{
 		config:                                config,
@@ -146,6 +151,7 @@ func newStoreNode(
 		regenerateCertsCh:                     make(chan struct{}, 1),
 		volumeMountedFiles:                    volumeMountedFiles,
 		jsonMarshaller:                        jsonMarshaller,
+		gpuManager:                            gpuManager,
 	}
 }
 
@@ -403,6 +409,23 @@ func (n *storeNode) createGardenContainer(logger lager.Logger, traceID string, i
 		return nil, err
 	}
 
+	var cdiDevices []string
+	var gpuEnv []string
+	if info.GPULimit > 0 {
+		indices, err := n.gpuManager.Allocate(info.Guid, info.GPULimit)
+		if err != nil {
+			logger.Error("failed-to-allocate-gpu", err)
+			return nil, err
+		}
+
+		idxStrs := make([]string, len(indices))
+		for i, idx := range indices {
+			cdiDevices = append(cdiDevices, fmt.Sprintf("%s.com/gpu=%d", info.GPUType, idx))
+			idxStrs[i] = strconv.FormatUint(uint64(idx), 10)
+		}
+		gpuEnv = append(gpuEnv, "CUDA_VISIBLE_DEVICES="+strings.Join(idxStrs, ","))
+	}
+
 	containerSpec := garden.ContainerSpec{
 		Handle:     info.Guid,
 		Privileged: info.Privileged,
@@ -411,7 +434,7 @@ func (n *storeNode) createGardenContainer(logger lager.Logger, traceID string, i
 			Username: info.ImageUsername,
 			Password: info.ImagePassword,
 		},
-		Env:        convertEnvVars(info.Env),
+		Env:        append(convertEnvVars(info.Env), gpuEnv...),
 		BindMounts: n.bindMounts,
 		Limits: garden.Limits{
 			Memory: garden.MemoryLimits{
@@ -432,6 +455,7 @@ func (n *storeNode) createGardenContainer(logger lager.Logger, traceID string, i
 		Properties: gardenProperties,
 		NetIn:      netInRules,
 		NetOut:     netOutRules,
+		CDIDevices: cdiDevices,
 	}
 
 	if n.config.SetCPUWeight {
@@ -808,6 +832,10 @@ func (n *storeNode) Destroy(logger lager.Logger, traceID string) error {
 func (n *storeNode) destroyContainer(logger lager.Logger, traceID string) error {
 	logger.Debug("destroying-garden-container")
 
+	// Release the GPU unconditionally, even if the Garden destroy call below
+	// fails, so an already-failed destroy still frees the GPU for reuse.
+	defer n.releaseGPU()
+
 	startTime := time.Now()
 	err := n.gardenClientFactory.NewGardenClient(logger, traceID).Destroy(n.info.Guid)
 	destroyDuration := time.Since(startTime)
@@ -836,6 +864,12 @@ func (n *storeNode) destroyContainer(logger lager.Logger, traceID string) error 
 		logger.Error("failed-to-send-duration", err, lager.Data{"metric-name": GardenContainerDestructionSucceededDuration})
 	}
 	return nil
+}
+
+func (n *storeNode) releaseGPU() {
+	if n.gpuManager != nil {
+		n.gpuManager.Release(n.info.Guid)
+	}
 }
 
 func (n *storeNode) Expire(logger lager.Logger, traceID string, now time.Time) bool {

@@ -237,6 +237,15 @@ func Initialize(
 
 	logManager := containerstore.NewLogManager()
 
+	gpuManager, err := executor.NewGPUManager()
+	if err != nil {
+		return nil, nil, grouper.Members{}, err
+	}
+	totalCapacity.GPUTotal = gpuManager.TotalGPUs()
+	if totalCapacity.GPUTotal > 0 {
+		totalCapacity.GPUType = "nvidia"
+	}
+
 	containerStore := containerstore.New(
 		containerConfig,
 		&totalCapacity,
@@ -258,6 +267,7 @@ func Initialize(
 		config.AdvertisePreferenceForInstanceAddress,
 		volumeMountedFilesHandler,
 		json.Marshal,
+		gpuManager,
 	)
 
 	depotClient := depot.NewClient(
