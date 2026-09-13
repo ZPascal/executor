@@ -239,6 +239,8 @@ func (c *client) TotalResources(logger lager.Logger) (executor.ExecutorResources
 		MemoryMB:   c.totalCapacity.MemoryMB,
 		DiskMB:     diskMB,
 		Containers: c.totalCapacity.Containers,
+		GPUTotal:   c.totalCapacity.GPUTotal,
+		GPUType:    c.totalCapacity.GPUType,
 	}, nil
 }
 

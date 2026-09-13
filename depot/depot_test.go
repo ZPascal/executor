@@ -744,6 +744,20 @@ var _ = Describe("Depot", func() {
 				Expect(result.DiskMB).To(BeNumerically(">", 0))
 			})
 		})
+
+		Context("when the cell has GPU capacity configured at startup", func() {
+			BeforeEach(func() {
+				resources.GPUTotal = 2
+				resources.GPUType = "nvidia"
+			})
+
+			It("advertises the GPU total and type instead of dropping them", func() {
+				result, err := depotClient.TotalResources(logger)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(result.GPUTotal).To(Equal(2))
+				Expect(result.GPUType).To(Equal("nvidia"))
+			})
+		})
 	})
 
 	Describe("VolumeDrivers", func() {
